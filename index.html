@@ -2016,10 +2016,11 @@ function draw() {
       ctx.textBaseline = 'middle';
       ctx.fillText('NO SCORES YET', W / 2, H * 0.37);
     } else {
+      const entrySize = Math.round(Math.min(W * 0.042, H * 0.038, 28));
       hs.forEach((e, i) => {
-        const yy = H * 0.185 + i * H * 0.077;
+        const yy = H * 0.185 + i * (entrySize * 1.8);
         const fresh = i === newScoreIdx;
-        ctx.font = fresh ? 'bold 14px Bitcount Grid Single, Courier New' : '13px Bitcount Grid Single, Courier New';
+        ctx.font = fresh ? `bold ${entrySize}px Bitcount Grid Single, Courier New` : `${entrySize}px Bitcount Grid Single, Courier New`;
         ctx.fillStyle = fresh ? '#ffff66' : i === 0 ? '#ffd700' : i < 3 ? '#aaddff' : '#667799';
         if (fresh) { ctx.shadowColor = '#ffee00'; ctx.shadowBlur = 14; }
         const rank = `${i + 1}.`.padEnd(3);
