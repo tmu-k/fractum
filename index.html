@@ -492,12 +492,12 @@ function closeNameOverlay() {
   enteringName = false;
   document.getElementById('name-overlay').classList.remove('visible');
 }
-function showScores() {
+function showScores(doFetch = true) {
   state = 'scores';
   menuFocusIdx = 0;
   stopMusic();
   document.getElementById('message').textContent = '';
-  fetchScores();
+  if (doFetch) fetchScores();
 }
 function handlePostGame() {
   if (qualifiesForHs(score)) openNameOverlay();
@@ -1063,12 +1063,13 @@ document.addEventListener('keydown', e => {
   }
 });
 
-document.getElementById('name-input').addEventListener('keydown', e => {
+document.getElementById('name-input').addEventListener('keydown', async e => {
   if (e.key === 'Enter') {
     e.stopPropagation();
+    const name = document.getElementById('name-input').value;
     closeNameOverlay();
-    showScores();
-    saveScore(document.getElementById('name-input').value, score, level);
+    showScores(false);
+    await saveScore(name, score, level);
     return;
   }
   if (e.key === 'Escape') {
