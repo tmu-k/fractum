@@ -818,7 +818,7 @@ function fireBullet() {
 let mouseSensitivity = 10;
 let pointerLockEnabled = false;
 let sliderDragging = false, sliderClickConsumed = false;
-let isTouchDevice = false;
+let isTouchDevice = false, _touchConsumed = false;
 
 function getSliderTrack(item) {
   return { x1: W * 0.50, x2: W * 0.72, y: item.y, h: item.h };
@@ -999,6 +999,7 @@ document.addEventListener('mouseup', () => { sliderDragging = false; });
 
 canvas.addEventListener('click', () => {
   resumeAudio();
+  if (_touchConsumed) { _touchConsumed = false; return; }
   if (sliderClickConsumed) { sliderClickConsumed = false; return; }
   if (state === 'menu')     { activateMenuItem(menuFocusIdx); return; }
   if (state === 'info')     { activateInfoItem(menuFocusIdx); return; }
@@ -1024,7 +1025,7 @@ canvas.addEventListener('touchstart', e => {
   mx = x; menuMouseX = x; menuMouseY = y;
   if ((state === 'playing' || state === 'ready') && _pauseBtnHit(x, y)) {
     _pausedFrom = state; state = 'paused'; stopMusic(); menuFocusIdx = 0;
-    sliderClickConsumed = true; return;
+    _touchConsumed = true; return;
   }
   if (state === 'menu' || state === 'settings' || state === 'info' || state === 'paused' || state === 'scores') {
     const items = state === 'menu' ? getMenuLayout() : state === 'info' ? getInfoLayout() : state === 'paused' ? getPauseLayout() : state === 'scores' ? getScoresLayout() : getSettingsLayout();
@@ -1043,6 +1044,7 @@ canvas.addEventListener('touchend', e => {
   e.preventDefault();
   const { x, y } = _touchPos(e.changedTouches[0]);
   menuMouseX = x; menuMouseY = y;
+  if (_touchConsumed) { _touchConsumed = false; return; }
   if (sliderClickConsumed) { sliderClickConsumed = false; return; }
   if (state === 'menu')     { activateMenuItem(menuFocusIdx); return; }
   if (state === 'info')     { activateInfoItem(menuFocusIdx); return; }
