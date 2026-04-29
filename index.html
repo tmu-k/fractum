@@ -334,7 +334,7 @@ function playTone(freq, type, duration, gainVal, freqEnd) {
   if (!sfxEnabled) return;
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.connect(gain); gain.connect(_sfxGain);
   osc.type = type;
   osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
   if (freqEnd !== undefined) osc.frequency.exponentialRampToValueAtTime(freqEnd, audioCtx.currentTime + duration);
@@ -370,7 +370,7 @@ function sfxArmoredHit() { playTone(160, 'square', 0.07, 0.22, 130); }
 function sfxExplosion() {
   if (!sfxEnabled) return;
   const t = audioCtx.currentTime;
-  const dst = audioCtx.destination;
+  const dst = _sfxGain;
 
   // Soft-clip waveshaper — thickens noise into a meaty crunch
   const _mkClip = () => {
@@ -434,6 +434,7 @@ function resumeAudio() {
 }
 
 let sfxEnabled = true, musicEnabled = true;
+let musicVolume = 0.8, sfxVolume = 0.8;
 
 // --- High scores ---
 let enteringName = false, newScoreIdx = -1;
@@ -514,7 +515,14 @@ const _noiseBuf = (() => {
 const _mBus = audioCtx.createDynamicsCompressor();
 _mBus.threshold.value = -14; _mBus.ratio.value = 5;
 _mBus.attack.value = 0.003;  _mBus.release.value = 0.15;
-_mBus.connect(audioCtx.destination);
+const _musicGain = audioCtx.createGain();
+_musicGain.gain.value = musicVolume;
+_mBus.connect(_musicGain);
+_musicGain.connect(audioCtx.destination);
+
+const _sfxGain = audioCtx.createGain();
+_sfxGain.gain.value = sfxVolume;
+_sfxGain.connect(audioCtx.destination);
 
 function _mOsc(freq, t, dur, type, vol) {
   const o = audioCtx.createOscillator(), g = audioCtx.createGain();
@@ -810,15 +818,12 @@ let mouseSensitivity = 10;
 let pointerLockEnabled = false;
 let sliderDragging = false, sliderClickConsumed = false;
 
-function getSensTrack() {
-  const items = getSettingsLayout();
-  const item = items.find(it => it.label === 'SENSITIVITY') || items[3];
+function getSliderTrack(item) {
   return { x1: W * 0.50, x2: W * 0.72, y: item.y, h: item.h };
 }
-function sensFromX(x) {
-  const { x1, x2 } = getSensTrack();
-  const t = Math.max(0, Math.min(1, (x - x1) / (x2 - x1)));
-  return Math.round((0.5 + t * 19.5) * 2) / 2;
+function getSensTrack() {
+  const item = getSettingsLayout().find(it => it.label === 'SENSITIVITY');
+  return item ? getSliderTrack(item) : { x1: W * 0.50, x2: W * 0.72, y: 0, h: 42 };
 }
 let menuMouseX = 0, menuMouseY = 0, menuFocusIdx = 0;
 let settingsOrigin = 'menu';
@@ -865,29 +870,44 @@ function getInfoLayout() {
 }
 
 function getSettingsLayout() {
-  const gap = Math.max(46, H * 0.088), startY = H * 0.29;
+  const gap = Math.max(40, H * 0.076), startY = H * 0.22;
+  let n = 0;
   const items = [
-    { label: 'MUSIC',        y: startY,         h: 42, type: 'toggle',
+    { label: 'MUSIC',     y: startY + gap*(n++), h: 42, type: 'toggle',
       getVal: () => musicEnabled ? 'ON' : 'OFF',
       act: () => { musicEnabled = !musicEnabled;
         if (musicEnabled && (state === 'playing' || state === 'ready')) { resumeAudio(); startMusic(level); }
         else if (!musicEnabled) stopMusic(); } },
-    { label: 'SFX',          y: startY + gap,   h: 42, type: 'toggle',
+    { label: 'MUSIC VOL', y: startY + gap*(n++), h: 42, type: 'range',
+      getT:     () => musicVolume,
+      getVal:   () => Math.round(musicVolume * 100) + '%',
+      actMinus: () => { musicVolume = Math.max(0, +(musicVolume - 0.1).toFixed(1)); _musicGain.gain.value = musicVolume; },
+      actPlus:  () => { musicVolume = Math.min(1, +(musicVolume + 0.1).toFixed(1)); _musicGain.gain.value = musicVolume; },
+      fromX:    t  => { musicVolume = Math.round(t * 10) / 10; _musicGain.gain.value = musicVolume; } },
+    { label: 'SFX',       y: startY + gap*(n++), h: 42, type: 'toggle',
       getVal: () => sfxEnabled ? 'ON' : 'OFF',
       act: () => { sfxEnabled = !sfxEnabled; } },
-    { label: 'POINTER LOCK', y: startY + gap*2, h: 42, type: 'toggle',
+    { label: 'SFX VOL',   y: startY + gap*(n++), h: 42, type: 'range',
+      getT:     () => sfxVolume,
+      getVal:   () => Math.round(sfxVolume * 100) + '%',
+      actMinus: () => { sfxVolume = Math.max(0, +(sfxVolume - 0.1).toFixed(1)); _sfxGain.gain.value = sfxVolume; },
+      actPlus:  () => { sfxVolume = Math.min(1, +(sfxVolume + 0.1).toFixed(1)); _sfxGain.gain.value = sfxVolume; },
+      fromX:    t  => { sfxVolume = Math.round(t * 10) / 10; _sfxGain.gain.value = sfxVolume; } },
+    { label: 'POINTER LOCK', y: startY + gap*(n++), h: 42, type: 'toggle',
       getVal: () => pointerLockEnabled ? 'ON' : 'OFF',
       act: () => { pointerLockEnabled = !pointerLockEnabled;
         if (!pointerLockEnabled && document.pointerLockElement) document.exitPointerLock();
         menuFocusIdx = Math.min(menuFocusIdx, getSettingsLayout().length - 1); } },
   ];
   if (pointerLockEnabled) {
-    items.push({ label: 'SENSITIVITY', y: startY + gap*3, h: 42, type: 'range',
-      getVal: () => mouseSensitivity.toFixed(1),
+    items.push({ label: 'SENSITIVITY', y: startY + gap*(n++), h: 42, type: 'range',
+      getT:     () => (mouseSensitivity - 0.5) / 19.5,
+      getVal:   () => mouseSensitivity.toFixed(1),
       actMinus: () => { mouseSensitivity = Math.max(0.5, Math.round((mouseSensitivity - 0.5) * 10) / 10); },
-      actPlus:  () => { mouseSensitivity = Math.min(20,  Math.round((mouseSensitivity + 0.5) * 10) / 10); } });
+      actPlus:  () => { mouseSensitivity = Math.min(20,  Math.round((mouseSensitivity + 0.5) * 10) / 10); },
+      fromX:    t  => { mouseSensitivity = Math.round((0.5 + t * 19.5) * 2) / 2; } });
   }
-  items.push({ label: 'BACK', y: startY + gap*(pointerLockEnabled ? 4 : 3), h: 42, type: 'action',
+  items.push({ label: 'BACK', y: startY + gap*n, h: 42, type: 'action',
     getVal: () => '',
     act: () => {
       state = settingsOrigin; menuFocusIdx = settingsOrigin === 'menu' ? 1 : 0;
@@ -940,7 +960,11 @@ document.addEventListener('mousemove', e => {
   menuMouseX = e.clientX - rect.left;
   menuMouseY = e.clientY - rect.top;
   if (sliderDragging) {
-    mouseSensitivity = sensFromX(menuMouseX);
+    const _si = getSettingsLayout()[menuFocusIdx];
+    if (_si?.type === 'range' && _si.fromX) {
+      const _t = Math.max(0, Math.min(1, (menuMouseX - W * 0.50) / (W * 0.22)));
+      _si.fromX(_t);
+    }
   } else if (state === 'menu' || state === 'settings' || state === 'info' || state === 'paused') {
     const items = state === 'menu' ? getMenuLayout() : state === 'info' ? getInfoLayout() : state === 'paused' ? getPauseLayout() : getSettingsLayout();
     const hit = items.findIndex(it => menuMouseY >= it.y - it.h / 2 && menuMouseY <= it.y + it.h / 2);
@@ -957,17 +981,16 @@ document.addEventListener('mousemove', e => {
 canvas.addEventListener('mousedown', e => {
   if (state !== 'settings') return;
   const items = getSettingsLayout();
-  const sensIdx = items.findIndex(it => it.label === 'SENSITIVITY');
-  if (sensIdx === -1) return;
   const rect = canvas.getBoundingClientRect();
   const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
-  const { x1, x2, y, h } = getSensTrack();
-  if (cy >= y - h / 2 && cy <= y + h / 2 && cx >= x1 - 12 && cx <= x2 + 12) {
-    sliderDragging = true;
-    sliderClickConsumed = true;
-    menuFocusIdx = sensIdx;
-    mouseSensitivity = sensFromX(cx);
-  }
+  const x1 = W * 0.50, x2 = W * 0.72;
+  const idx = items.findIndex(it => it.type === 'range' && cy >= it.y - it.h / 2 && cy <= it.y + it.h / 2 && cx >= x1 - 12 && cx <= x2 + 12);
+  if (idx === -1) return;
+  sliderDragging = true;
+  sliderClickConsumed = true;
+  menuFocusIdx = idx;
+  const t = Math.max(0, Math.min(1, (cx - x1) / (x2 - x1)));
+  items[idx].fromX(t);
 });
 
 document.addEventListener('mouseup', () => { sliderDragging = false; });
@@ -1807,13 +1830,13 @@ function drawSettingsScreen() {
     ctx.shadowBlur = 0;
 
     if (item.type === 'range') {
-      const { x1, x2 } = getSensTrack();
-      const t = (mouseSensitivity - 0.5) / 19.5;
+      const x1 = W * 0.50, x2 = W * 0.72;
+      const t = item.getT();
       const thumbX = x1 + t * (x2 - x1);
       const th = 5;
       ctx.textAlign = 'left';
       ctx.fillStyle = on ? '#ffffff' : '#99aacc';
-      ctx.fillText(mouseSensitivity.toFixed(1), x2 + 14, item.y);
+      ctx.fillText(item.getVal(), x2 + 14, item.y);
       ctx.beginPath(); ctx.roundRect(x1, item.y - th / 2, x2 - x1, th, th / 2);
       ctx.fillStyle = '#1a2540'; ctx.fill();
       ctx.beginPath(); ctx.roundRect(x1, item.y - th / 2, thumbX - x1, th, th / 2);
