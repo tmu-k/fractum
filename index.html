@@ -438,8 +438,9 @@ let sfxEnabled = true, musicEnabled = true;
 // --- High scores ---
 let enteringName = false, newScoreIdx = -1;
 
-const DL_PUBLIC  = '69f1f7298f40bb10689d784c';
-const DL_PRIVATE = 'G7oaqtTy60GW5MAZHUp-XAm59z2bwxqUqtqjmjJjIMag';
+const SB_URL = 'https://vtookodukwlczouhoeqd.supabase.co';
+const SB_KEY = 'sb_publishable_AcBv0MOj4y3cxmCyImcMvA_9HY40lzW';
+const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
 let _cachedScores = null, _scoresLoading = false;
 
 function loadScores() { return _cachedScores || []; }
@@ -448,22 +449,9 @@ async function fetchScores() {
   if (_scoresLoading) return;
   _scoresLoading = true;
   try {
-    const url = `https://dreamlo.com/lb/${DL_PUBLIC}/json/10`;
-    console.log('[hs] fetching', url);
-    const r = await fetch(url);
-    const data = await r.json();
-    console.log('[hs] fetch response', data);
-    const raw = data?.dreamlo?.leaderboard?.entry;
-    if (!raw) { _cachedScores = []; return; }
-    const entries = Array.isArray(raw) ? raw : [raw];
-    _cachedScores = entries.map(e => ({
-      name: e.name,
-      score: parseInt(e.score),
-      level: parseInt(e.seconds) || 1
-    }));
-    console.log('[hs] parsed scores', _cachedScores);
+    const r = await fetch(`${SB_URL}/rest/v1/scores?select=name,score,level&order=score.desc&limit=10`, { headers: SB_HEADERS });
+    _cachedScores = await r.json();
   } catch(e) {
-    console.error('[hs] fetchScores error', e);
     if (_cachedScores === null) _cachedScores = [];
   } finally {
     _scoresLoading = false;
@@ -479,16 +467,14 @@ function qualifiesForHs(s) {
 async function saveScore(name, s, lv) {
   const n = (name.trim().toUpperCase() || 'AAA').slice(0, 3);
   try {
-    const url = `https://dreamlo.com/lb/${DL_PRIVATE}/add/${encodeURIComponent(n)}/${s}/${lv}`;
-    console.log('[hs] saving', url);
-    const r = await fetch(url);
-    const text = await r.text();
-    console.log('[hs] save response', text);
+    await fetch(`${SB_URL}/rest/v1/scores`, {
+      method: 'POST',
+      headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ name: n, score: s, level: lv })
+    });
     await fetchScores();
     newScoreIdx = _cachedScores.findIndex(e => e.name === n && e.score === s);
-    console.log('[hs] newScoreIdx', newScoreIdx);
   } catch(e) {
-    console.error('[hs] saveScore error', e);
     newScoreIdx = -1;
   }
 }
