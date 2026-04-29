@@ -1041,15 +1041,15 @@ document.addEventListener('keydown', e => {
       return;
     }
     if (e.code === 'Enter') { e.preventDefault(); activatePauseItem(menuFocusIdx); return; }
-    if (e.code === 'Space') { e.preventDefault(); activatePauseItem(0); return; }
+    if (e.code === 'Space' || e.code === 'Escape') { e.preventDefault(); activatePauseItem(0); return; }
     if (e.key === 's' || e.key === 'S') { activatePauseItem(1); return; }
     if (e.key === 'q' || e.key === 'Q') { activatePauseItem(2); return; }
     return;
   }
-  if (e.code === 'Space') {
+  if (e.code === 'Space' || e.code === 'Escape') {
     e.preventDefault(); resumeAudio();
     if (enteringName) return;
-    if (state === 'gameover') { handlePostGame(); return; }
+    if (state === 'gameover') { if (e.code === 'Space') handlePostGame(); return; }
     if (state === 'playing' || state === 'ready') {
       _pausedFrom = state;
       state = 'paused'; stopMusic();
@@ -1641,7 +1641,7 @@ function drawInfoScreen() {
   [
     'Mouse — move paddle',
     'Click — launch / fire cannon',
-    'Space — pause',
+    'Space / Esc — pause',
   ].forEach((line, i) => ctx.fillText(line, W / 2, ctrlY + (i + 1) * rowH * 0.82));
 
   const panelHeaderY = H * 0.57;
