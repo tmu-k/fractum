@@ -24,6 +24,7 @@
     width: 100%;
     height: 100%;
     cursor: default;
+    touch-action: none;
   }
   #hud {
     position: absolute;
@@ -1009,6 +1010,43 @@ canvas.addEventListener('click', () => {
   if (effects.shoot > 0 && state === 'playing') { fireBullet(); return; }
   launch();
 });
+
+function _touchPos(touch) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
+}
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  resumeAudio();
+  const { x, y } = _touchPos(e.touches[0]);
+  mx = x; menuMouseX = x; menuMouseY = y;
+  if (state === 'menu' || state === 'settings' || state === 'info' || state === 'paused' || state === 'scores') {
+    const items = state === 'menu' ? getMenuLayout() : state === 'info' ? getInfoLayout() : state === 'paused' ? getPauseLayout() : state === 'scores' ? getScoresLayout() : getSettingsLayout();
+    const hit = items.findIndex(it => y >= it.y - it.h / 2 && y <= it.y + it.h / 2);
+    if (hit !== -1) menuFocusIdx = hit;
+  }
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const { x, y } = _touchPos(e.touches[0]);
+  mx = x; menuMouseX = x; menuMouseY = y;
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  const { x, y } = _touchPos(e.changedTouches[0]);
+  menuMouseX = x; menuMouseY = y;
+  if (state === 'menu')     { activateMenuItem(menuFocusIdx); return; }
+  if (state === 'info')     { activateInfoItem(menuFocusIdx); return; }
+  if (state === 'settings') { activateSettingsItem(menuFocusIdx); return; }
+  if (state === 'paused')   { activatePauseItem(menuFocusIdx); return; }
+  if (enteringName) return;
+  if (state === 'scores')   { activateScoresItem(0); return; }
+  if (state === 'gameover') { handlePostGame(); return; }
+  if (effects.shoot > 0 && state === 'playing') { fireBullet(); return; }
+  launch();
+}, { passive: false });
 
 document.addEventListener('keydown', e => {
   resumeAudio();
