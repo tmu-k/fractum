@@ -1,6 +1,6 @@
 # Fractum
 
-A browser-based breakout game with procedurally generated levels, a chiptune soundtrack, and a global high score leaderboard.
+A browser-based breakout game with procedurally generated levels, a chiptune soundtrack, and a global high score leaderboard. Basically just a vibecoding test using Claude Sonnet (4.6).
 
 **Play it:** https://tmu-k.github.io/fractum/
 
