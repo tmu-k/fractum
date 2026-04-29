@@ -1065,12 +1065,14 @@ document.addEventListener('keydown', e => {
 
 document.getElementById('name-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') {
+    e.stopPropagation();
     closeNameOverlay();
     showScores();
     saveScore(document.getElementById('name-input').value, score, level);
     return;
   }
   if (e.key === 'Escape') {
+    e.stopPropagation();
     closeNameOverlay();
     newScoreIdx = -1;
     showScores();
