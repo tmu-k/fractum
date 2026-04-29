@@ -818,6 +818,7 @@ function fireBullet() {
 let mouseSensitivity = 10;
 let pointerLockEnabled = false;
 let sliderDragging = false, sliderClickConsumed = false;
+let isTouchDevice = false;
 
 function getSliderTrack(item) {
   return { x1: W * 0.50, x2: W * 0.72, y: item.y, h: item.h };
@@ -1017,9 +1018,13 @@ function _touchPos(touch) {
 }
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
+  isTouchDevice = true;
   resumeAudio();
   const { x, y } = _touchPos(e.touches[0]);
   mx = x; menuMouseX = x; menuMouseY = y;
+  if ((state === 'playing' || state === 'ready') && _pauseBtnHit(x, y)) {
+    _pausedFrom = state; state = 'paused'; stopMusic(); menuFocusIdx = 0; return;
+  }
   if (state === 'menu' || state === 'settings' || state === 'info' || state === 'paused' || state === 'scores') {
     const items = state === 'menu' ? getMenuLayout() : state === 'info' ? getInfoLayout() : state === 'paused' ? getPauseLayout() : state === 'scores' ? getScoresLayout() : getSettingsLayout();
     const hit = items.findIndex(it => y >= it.y - it.h / 2 && y <= it.y + it.h / 2);
@@ -1911,6 +1916,30 @@ function drawSettingsScreen() {
   ctx.shadowBlur = 0;
 }
 
+function _pauseBtnRect() {
+  const s = Math.round(Math.min(W, H) * 0.07);
+  return { x: W - s - 10, y: 10, s };
+}
+function _pauseBtnHit(px, py) {
+  const { x, y, s } = _pauseBtnRect();
+  return px >= x && px <= x + s && py >= y && py <= y + s;
+}
+function drawPauseBtn() {
+  if (!isTouchDevice || (state !== 'playing' && state !== 'ready')) return;
+  const { x, y, s } = _pauseBtnRect();
+  ctx.save();
+  ctx.globalAlpha = 0.45;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.roundRect(x, y, s, s, s * 0.18); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#000a20';
+  const bw = s * 0.14, bh = s * 0.44, gap = s * 0.13;
+  const bx = x + s / 2 - gap / 2 - bw, by = y + s / 2 - bh / 2;
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.fillRect(bx + bw + gap, by, bw, bh);
+  ctx.restore();
+}
+
 function draw() {
   canvas.style.cursor = (state === 'menu' || state === 'settings' || state === 'scores' || state === 'info' || state === 'paused') ? 'default' : 'none';
   ctx.clearRect(0, 0, W, H);
@@ -1928,6 +1957,7 @@ function draw() {
     for (const p of powerups) drawPowerup(p);
     for (const bu of bullets) drawBullet(bu);
     drawEffects();
+    drawPauseBtn();
   }
 
   if (state === 'menu') {
