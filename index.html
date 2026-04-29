@@ -1023,7 +1023,8 @@ canvas.addEventListener('touchstart', e => {
   const { x, y } = _touchPos(e.touches[0]);
   mx = x; menuMouseX = x; menuMouseY = y;
   if ((state === 'playing' || state === 'ready') && _pauseBtnHit(x, y)) {
-    _pausedFrom = state; state = 'paused'; stopMusic(); menuFocusIdx = 0; return;
+    _pausedFrom = state; state = 'paused'; stopMusic(); menuFocusIdx = 0;
+    sliderClickConsumed = true; return;
   }
   if (state === 'menu' || state === 'settings' || state === 'info' || state === 'paused' || state === 'scores') {
     const items = state === 'menu' ? getMenuLayout() : state === 'info' ? getInfoLayout() : state === 'paused' ? getPauseLayout() : state === 'scores' ? getScoresLayout() : getSettingsLayout();
@@ -1042,6 +1043,7 @@ canvas.addEventListener('touchend', e => {
   e.preventDefault();
   const { x, y } = _touchPos(e.changedTouches[0]);
   menuMouseX = x; menuMouseY = y;
+  if (sliderClickConsumed) { sliderClickConsumed = false; return; }
   if (state === 'menu')     { activateMenuItem(menuFocusIdx); return; }
   if (state === 'info')     { activateInfoItem(menuFocusIdx); return; }
   if (state === 'settings') { activateSettingsItem(menuFocusIdx); return; }
