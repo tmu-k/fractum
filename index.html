@@ -438,23 +438,48 @@ let sfxEnabled = true, musicEnabled = true;
 // --- High scores ---
 let enteringName = false, newScoreIdx = -1;
 
-function loadScores() {
-  try { return JSON.parse(localStorage.getItem('fractum_hs') || '[]'); }
-  catch(e) { return []; }
+const DL_PUBLIC  = '69f1f7298f40bb10689d784c';
+const DL_PRIVATE = 'G7oaqtTy60GW5MAZHUp-XAm59z2bwxqUqtqjmjJjIMag';
+let _cachedScores = null, _scoresLoading = false;
+
+function loadScores() { return _cachedScores || []; }
+
+async function fetchScores() {
+  if (_scoresLoading) return;
+  _scoresLoading = true;
+  try {
+    const r = await fetch(`https://dreamlo.com/lb/${DL_PUBLIC}/json/10`);
+    const data = await r.json();
+    const raw = data?.dreamlo?.leaderboard?.entry;
+    if (!raw) { _cachedScores = []; return; }
+    const entries = Array.isArray(raw) ? raw : [raw];
+    _cachedScores = entries.map(e => ({
+      name: e.name,
+      score: parseInt(e.score),
+      level: parseInt(e.seconds) || 1
+    }));
+  } catch(e) {
+    if (_cachedScores === null) _cachedScores = [];
+  } finally {
+    _scoresLoading = false;
+  }
 }
+
 function qualifiesForHs(s) {
   if (s <= 0) return false;
-  const hs = loadScores();
-  return hs.length < 10 || s > hs[hs.length - 1].score;
+  if (_cachedScores === null || _cachedScores.length < 10) return true;
+  return s > _cachedScores[_cachedScores.length - 1].score;
 }
-function saveScore(name, s, lv) {
-  const hs = loadScores();
-  const entry = { name: (name.trim().toUpperCase() || 'AAA').slice(0, 3), score: s, level: lv };
-  hs.push(entry);
-  hs.sort((a, b) => b.score - a.score);
-  hs.splice(10);
-  newScoreIdx = hs.indexOf(entry);
-  localStorage.setItem('fractum_hs', JSON.stringify(hs));
+
+async function saveScore(name, s, lv) {
+  const n = (name.trim().toUpperCase() || 'AAA').slice(0, 3);
+  try {
+    await fetch(`https://dreamlo.com/lb/${DL_PRIVATE}/add/${encodeURIComponent(n)}/${s}/${lv}`);
+    await fetchScores();
+    newScoreIdx = _cachedScores.findIndex(e => e.name === n && e.score === s);
+  } catch(e) {
+    newScoreIdx = -1;
+  }
 }
 function openNameOverlay() {
   enteringName = true;
@@ -472,6 +497,7 @@ function showScores() {
   menuFocusIdx = 0;
   stopMusic();
   document.getElementById('message').textContent = '';
+  fetchScores();
 }
 function handlePostGame() {
   if (qualifiesForHs(score)) openNameOverlay();
@@ -1039,9 +1065,9 @@ document.addEventListener('keydown', e => {
 
 document.getElementById('name-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') {
-    saveScore(document.getElementById('name-input').value, score, level);
     closeNameOverlay();
     showScores();
+    saveScore(document.getElementById('name-input').value, score, level);
     return;
   }
   if (e.key === 'Escape') {
@@ -1885,7 +1911,11 @@ function draw() {
     ctx.fillStyle = '#ffdd44'; ctx.font = 'bold 26px Bitcount Grid Single, Courier New';
     ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 18;
     ctx.fillText('HIGH SCORES', W / 2, H * 0.11); ctx.shadowBlur = 0;
-    if (hs.length === 0) {
+    if (_cachedScores === null) {
+      ctx.fillStyle = '#aabbcc'; ctx.font = '14px Bitcount Grid Single, Courier New';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('LOADING...', W / 2, H * 0.37);
+    } else if (hs.length === 0) {
       ctx.fillStyle = '#aabbcc'; ctx.font = '14px Bitcount Grid Single, Courier New';
       ctx.textBaseline = 'middle';
       ctx.fillText('NO SCORES YET', W / 2, H * 0.37);
@@ -1938,6 +1968,7 @@ updateDims();
 state = 'menu';
 menuFocusIdx = 0;
 mx = W / 2;
+fetchScores();
 loop();
 </script>
 </body>
