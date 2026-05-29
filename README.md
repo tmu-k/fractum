@@ -20,7 +20,7 @@ Break all the bricks to advance to the next level. Don't let the ball fall off t
 
 ## Features
 
-- **Procedurally generated levels** — every level has a unique layout and colour palette drawn from 12 named patterns (Chaos, Grid, Pyramid, Spire, Crystal, Mirror, Slash, Citadel, Nebula, Bars, Nexus, Wave)
+- **Procedurally generated levels** — every level has a unique layout and colour palette drawn from 24 named patterns (Chaos, Grid, Pyramid, Spire, Crystal, Mirror, Slash, Citadel, Nebula, Bars, Nexus, Wave, Ring, Comb, Tunnel, Stagger, Hourglass, Spine, Burst, Lattice, Rain, Vortex, Scales, Corners)
 - **Power-ups** — catch falling capsules to activate effects:
   - **WIDE** — wider paddle
   - **MULTI** — triple ball
@@ -29,7 +29,7 @@ Break all the bricks to advance to the next level. Don't let the ball fall off t
   - **FIRE** — cannon mode, shoot bricks directly
 - **Armoured bricks** — tougher bricks that take multiple hits
 - **Chiptune music** — procedural drum-and-synth soundtrack that changes with each level
-- **Global high scores** — top 10 leaderboard powered by Supabase, shared across all players
+- **Global high scores** — top 10 leaderboard powered by Cloudflare Workers + D1, shared across all players
 
 ---
 
@@ -43,4 +43,4 @@ Just open `index.html` in a browser — no build step, no dependencies, works fr
 
 - Vanilla JS + Canvas 2D — no frameworks
 - Web Audio API for all sound and music
-- Supabase for the global leaderboard
+- Cloudflare Workers + D1 for the global leaderboard

@@ -263,10 +263,97 @@ const LAYOUT_GENERATORS = [
         return Math.abs(r - cy - wave) <= amp ? cidx(r, R, rng) : 0;
       }));
   },
+
+  // Hollow ellipse ring
+  (R, C, rng) => Array.from({length: R}, (_, r) =>
+    Array.from({length: C}, (_, c) => {
+      const nr = (r + 0.5) / R * 2 - 1, nc = (c + 0.5) / C * 2 - 1;
+      const d = nr * nr + nc * nc;
+      return d > 0.2 && d < 0.85 ? cidx(r, R, rng) : 0;
+    })),
+
+  // Vertical stripes
+  (R, C, rng) => { const w = 1 + Math.floor(rng() * 2);
+    return Array.from({length: R}, (_, r) =>
+      Array.from({length: C}, (_, c) => Math.floor(c / w) % 2 === 0 ? cidx(r, R, rng) : 0)); },
+
+  // Concentric rectangular frames
+  (R, C, rng) => Array.from({length: R}, (_, r) =>
+    Array.from({length: C}, (_, c) => {
+      const d = Math.min(r, R - 1 - r, c, C - 1 - c);
+      return d % 2 === 0 ? cidx(r, R, rng) : 0;
+    })),
+
+  // Brick-wall offset rows
+  (R, C, rng) => Array.from({length: R}, (_, r) => {
+    const shift = (r % 2) * 2;
+    return Array.from({length: C}, (_, c) =>
+      Math.floor((c + shift) / 3) % 2 === 0 ? cidx(r, R, rng) : 0);
+  }),
+
+  // Wide at top/bottom, pinched middle
+  (R, C, rng) => Array.from({length: R}, (_, r) => {
+    const t = 1 - Math.abs(r / (R - 1) * 2 - 1);
+    const gap = Math.floor(t * Math.floor(C / 3));
+    return Array.from({length: C}, (_, c) => c >= gap && c < C - gap ? cidx(r, R, rng) : 0);
+  }),
+
+  // Center spine with alternating long/short ribs
+  (R, C, rng) => { const mc = Math.floor(C / 2);
+    return Array.from({length: R}, (_, r) =>
+      Array.from({length: C}, (_, c) => {
+        const ribLen = r % 2 === 0 ? Math.floor(C / 3) : Math.floor(C / 6);
+        return Math.abs(c - mc) <= ribLen ? cidx(r, R, rng) : 0;
+      })); },
+
+  // Radial spokes from center
+  (R, C, rng) => { const spokes = 4 + Math.floor(rng() * 4) * 2;
+    return Array.from({length: R}, (_, r) =>
+      Array.from({length: C}, (_, c) => {
+        const nr = (r + 0.5) / R * 2 - 1, nc = (c + 0.5) / C * 2 - 1;
+        const a = (Math.atan2(nc, nr) / Math.PI + 1) * spokes / 2;
+        return a % 1 < 0.35 ? cidx(r, R, rng) : 0;
+      })); },
+
+  // Diagonal diamond lattice
+  (R, C, rng) => Array.from({length: R}, (_, r) =>
+    Array.from({length: C}, (_, c) =>
+      (r + c) % 3 !== 1 ? cidx(r, R, rng) : 0)),
+
+  // Columns of random heights dropping from top
+  (R, C, rng) => {
+    const heights = Array.from({length: C}, () => 1 + Math.floor(rng() * R));
+    return Array.from({length: R}, (_, r) =>
+      Array.from({length: C}, (_, c) => r < heights[c] ? cidx(r, R, rng) : 0));
+  },
+
+  // Spiral bands
+  (R, C, rng) => Array.from({length: R}, (_, r) =>
+    Array.from({length: C}, (_, c) => {
+      const nr = (r + 0.5) / R * 2 - 1, nc = (c + 0.5) / C * 2 - 1;
+      const angle = Math.atan2(nc, nr) + Math.PI;
+      const dist  = Math.sqrt(nr * nr + nc * nc);
+      return Math.floor((angle / Math.PI + dist * 3) * 1.5) % 2 === 0 && dist < 0.95 ? cidx(r, R, rng) : 0;
+    })),
+
+  // Repeating expanding V-shapes (fish scales)
+  (R, C, rng) => { const mc = Math.floor(C / 2), period = 3 + Math.floor(rng() * 2);
+    return Array.from({length: R}, (_, r) =>
+      Array.from({length: C}, (_, c) =>
+        Math.abs(c - mc) <= r % period ? cidx(r, R, rng) : 0)); },
+
+  // Four corner masses, hollow center
+  (R, C, rng) => Array.from({length: R}, (_, r) =>
+    Array.from({length: C}, (_, c) => {
+      const dr = Math.min(r, R - 1 - r), dc = Math.min(c, C - 1 - c);
+      return dr + dc <= 2 ? cidx(r, R, rng) : 0;
+    })),
 ];
 
 const GEN_NAMES = ['CHAOS', 'GRID', 'PYRAMID', 'SPIRE', 'CRYSTAL', 'MIRROR',
-                   'SLASH', 'CITADEL', 'NEBULA', 'BARS', 'NEXUS', 'WAVE'];
+                   'SLASH', 'CITADEL', 'NEBULA', 'BARS', 'NEXUS', 'WAVE',
+                   'RING', 'COMB', 'TUNNEL', 'STAGGER', 'HOURGLASS', 'SPINE',
+                   'BURST', 'LATTICE', 'RAIN', 'VORTEX', 'SCALES', 'CORNERS'];
 
 function generateLevel(levelNum) {
   const rng    = mulberry32((levelNum * 2654435761 + SESSION_SEED) | 0);
@@ -441,9 +528,7 @@ let musicVolume = 0.8, sfxVolume = 0.8;
 // --- High scores ---
 let enteringName = false, newScoreIdx = -1;
 
-const SB_URL = 'https://vtookodukwlczouhoeqd.supabase.co';
-const SB_KEY = 'sb_publishable_AcBv0MOj4y3cxmCyImcMvA_9HY40lzW';
-const SB_HEADERS = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
+const SCORES_URL = 'https://fractum-scores.fractum.workers.dev/scores';
 let _cachedScores = null, _scoresLoading = false;
 
 function loadScores() { return _cachedScores || []; }
@@ -452,7 +537,7 @@ async function fetchScores() {
   if (_scoresLoading) return;
   _scoresLoading = true;
   try {
-    const r = await fetch(`${SB_URL}/rest/v1/scores?select=name,score,level&order=score.desc&limit=10`, { headers: SB_HEADERS });
+    const r = await fetch(SCORES_URL);
     _cachedScores = await r.json();
   } catch(e) {
     if (_cachedScores === null) _cachedScores = [];
@@ -470,10 +555,10 @@ function qualifiesForHs(s) {
 async function saveScore(name, s, lv) {
   const n = (name.trim().toUpperCase() || 'AAA').slice(0, 3);
   try {
-    await fetch(`${SB_URL}/rest/v1/scores`, {
+    await fetch(SCORES_URL, {
       method: 'POST',
-      headers: { ...SB_HEADERS, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ name: n, score: s, level: lv })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: n, score: s, level: lv }),
     });
     await fetchScores();
     newScoreIdx = _cachedScores.findIndex(e => e.name === n && e.score === s);
